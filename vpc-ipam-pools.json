@@ -1,0 +1,34 @@
+[
+  {
+    "ParameterKey": "pOrganizationId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pManagementAccountId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pOperatingRegionList",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pMainPoolCidrIpv4List",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pProdPoolCidrIpv4List",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pUatPoolCidrIpv4List",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pDevPoolCidrIpv4List",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pTagEnvironment",
+    "ParameterValue": ""
+  }
+]

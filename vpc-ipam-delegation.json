@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "pLambdaLogGroupRetention",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pNetworkAccountId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "pTagEnvironment",
+    "ParameterValue": ""
+  }
+]

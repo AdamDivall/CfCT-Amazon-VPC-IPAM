@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "CloudFormation Template to Create & Configure VPC IPAM Manager."
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Account & Organization Configuration
+        Parameters:
+          - pOrganizationId
+          - pManagementAccountId
+      - Label:
+          default: VPC IPAM Manager Configuration
+        Parameters:
+          - pMainPoolCidrIpv4List
+          - pOperatingRegionList
+          - pProdPoolCidrIpv4List
+          - pUatPoolCidrIpv4List
+          - pDevPoolCidrIpv4List
+      - Label:
+          default: Tagging Configuration
+        Parameters:
+          - pTagEnvironment
+Parameters:
+  pOrganizationId:
+    Type: String
+    Description: "The Amazon Organizations ID for Control Tower."
+    MinLength: 12
+    MaxLength: 12
+    AllowedPattern: '^[o][\-][a-z0-9]{10}$'
+    ConstraintDescription: "The Organization ID must be a 12 character string starting with o- and followed by 10 Lowercase Alphanumeric Characters."
+  pManagementAccountId:
+    Type: String
+    Description: "The AWS Account ID of the Control Tower Management Account."
+    AllowedPattern: '^[0-9]{12}$'
+    ConstraintDescription: "This must be a 12 character string."
+    MinLength: 12
+    MaxLength: 12
+  pOperatingRegionList:
+    Type: List<String>
+    Description: "A list of AWS Regions where the IPAM is allowed to manage IP address CIDRs."
+  pMainPoolCidrIpv4List:
+    Type: List<String>
+    Description: "The list of CIDRs provisioned to the Main IPAM pool."
+  pProdPoolCidrIpv4List:
+    Type: List<String>
+    Description: "The list of CIDRs provisioned to the Main IPAM pool."
+  pUatPoolCidrIpv4List:
+    Type: List<String>
+    Description: "The list of CIDRs provisioned to the Main IPAM pool."
+  pDevPoolCidrIpv4List:
+    Type: List<String>
+    Description: "The list of CIDRs provisioned to the Main IPAM pool."
+  pTagEnvironment:
+    Type: String
+    Description: Select the Name of the Environment
+    AllowedValues:
+      - Production
+      - UAT
+      - Development
+Resources:
+  # IPAM
+  rIpam:
+    Type: AWS::EC2::IPAM
+    Properties:
+      Description: Organization IPAM
+      OperatingRegions:
+        - RegionName: !Select [0, !Ref pOperatingRegionList]
+        - RegionName: !Select [1, !Ref pOperatingRegionList]
+        - RegionName: !Select [2, !Ref pOperatingRegionList]
+      Tags:
+        - Key: Name
+          Value: Organization-Level
+        - Key: Environment
+          Value: !Ref pTagEnvironment
+  rIpamScope:
+    Type: AWS::EC2::IPAMScope
+    Properties:
+      Description: Custom Scope for Private IP Addresses
+      IpamId: !Ref rIpam
+      IpamScopeType: private
+      Tags:
+        - Key: Name
+          Value: Organization-Scope
+        - Key: Environment
+          Value: !Ref pTagEnvironment
+  rIpamTopPoolIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      Description: "IPAM Pool for Top Level Pool"
+      IpamScopeId: !Ref rIpamScope
+      ProvisionedCidrs:
+        - Cidr: !Select [0, !Ref pMainPoolCidrIpv4List]
+        - Cidr: !Select [1, !Ref pMainPoolCidrIpv4List]
+        - Cidr: !Select [2, !Ref pMainPoolCidrIpv4List]
+      Tags:
+        - Key: Name
+          Value: Organization-Pool
+        - Key: Environment
+          Value: !Ref pTagEnvironment
+  rIpamPoolRegional1Ipv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      Description: "IPAM Pool for First AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      ProvisionedCidrs:
+        - Cidr: !Select [0, !Ref pMainPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamTopPoolIpv4
+      Tags:
+        - Key: Name
+          Value: Region-1-Pool
+        - Key: Environment
+          Value: !Ref pTagEnvironment
+  rIpamPoolRegional2Ipv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      Description: "IPAM Pool for Second AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      ProvisionedCidrs:
+        - Cidr: !Select [1, !Ref pMainPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamTopPoolIpv4
+      Tags:
+        - Key: Name
+          Value: Region-2-Pool
+        - Key: Environment
+          Value: !Ref pTagEnvironment
+  rIpamPoolRegional1ProdIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: Production
+      Description: "IPAM Pool for Production in First AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [0, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [0, !Ref pProdPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional1Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-1-Production-Pool
+        - Key: Environment
+          Value: Production
+  rIpamPoolRegional1UatIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: UAT
+      Description: "IPAM Pool for UAT in First AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [0, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [0, !Ref pUatPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional1Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-1-UAT-Pool
+        - Key: Environment
+          Value: UAT
+  rIpamPoolRegional1DevIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: Development
+      Description: "IPAM Pool for Development in First AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [0, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [0, !Ref pDevPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional1Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-1-Development-Pool
+        - Key: Environment
+          Value: Development
+  rIpamPoolRegional2ProdIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: Production
+      Description: "IPAM Pool for Production in Second AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [1, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [1, !Ref pProdPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional2Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-2-Production-Pool
+        - Key: Environment
+          Value: Production
+  rIpamPoolRegional2UatIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: UAT
+      Description: "IPAM Pool for UAT in Second AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [1, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [1, !Ref pUatPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional2Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-2-UAT-Pool
+        - Key: Environment
+          Value: UAT
+  rIpamPoolRegional2DevIpv4:
+    Type: AWS::EC2::IPAMPool
+    Properties:
+      AddressFamily: ipv4
+      AutoImport: True
+      AllocationResourceTags:
+        - Key: Environment
+          Value: Development
+      Description: "IPAM Pool for Development in Second AWS Region"
+      IpamScopeId: !Ref rIpamScope
+      Locale: !Select [1, !Ref pOperatingRegionList]
+      ProvisionedCidrs:
+        - Cidr: !Select [1, !Ref pDevPoolCidrIpv4List]
+      SourceIpamPoolId: !Ref rIpamPoolRegional2Ipv4
+      Tags:
+        - Key: Name
+          Value: Region-2-Development-Pool
+        - Key: Environment
+          Value: Development
+
+  # Resource Access Manager Shares
+  rRamShareIpamEnvironmentPoolIpv4:
+    Type: AWS::RAM::ResourceShare
+    Properties:
+      AllowExternalPrincipals: false
+      Name: "All IPAM Pools - Regional SDLC"
+      Principals:
+        - !Sub  "arn:aws:organizations::${pManagementAccountId}:organization/${pOrganizationId}"
+      ResourceArns:
+        - !GetAtt rIpamPoolRegional1ProdIpv4.Arn
+        - !GetAtt rIpamPoolRegional1UatIpv4.Arn
+        - !GetAtt rIpamPoolRegional1DevIpv4.Arn
+        - !GetAtt rIpamPoolRegional2ProdIpv4.Arn
+        - !GetAtt rIpamPoolRegional2UatIpv4.Arn
+        - !GetAtt rIpamPoolRegional2DevIpv4.Arn
+        - !GetAtt rIpamPoolRegional3ProdIpv4.Arn
+        - !GetAtt rIpamPoolRegional3UatIpv4.Arn
+        - !GetAtt rIpamPoolRegional3DevIpv4.Arn
+      PermissionArns:
+        - arn:aws:ram::aws:permission/AWSRAMDefaultPermissionsIpamPool
