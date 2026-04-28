@@ -259,8 +259,5 @@ Resources:
         - !GetAtt rIpamPoolRegional2ProdIpv4.Arn
         - !GetAtt rIpamPoolRegional2UatIpv4.Arn
         - !GetAtt rIpamPoolRegional2DevIpv4.Arn
-        - !GetAtt rIpamPoolRegional3ProdIpv4.Arn
-        - !GetAtt rIpamPoolRegional3UatIpv4.Arn
-        - !GetAtt rIpamPoolRegional3DevIpv4.Arn
       PermissionArns:
         - arn:aws:ram::aws:permission/AWSRAMDefaultPermissionsIpamPool
